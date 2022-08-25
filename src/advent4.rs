@@ -1,4 +1,6 @@
-use std::{fs::read_to_string, io, ops::Index};
+use std::{fs::read_to_string, io, ops::Index, collections::{HashSet, BTreeSet}, iter::Inspect};
+
+use itertools::{Itertools, iproduct};
 
 pub fn advent4() -> io::Result<()>{
     let file = read_to_string("inputs/advent4.txt")?;
@@ -18,10 +20,56 @@ pub fn advent4() -> io::Result<()>{
         .flatten()
         .collect::<Vec<i32>>();
 
+    println!("{}", drawn_numbers.len());
     // let a = &rows.into();
     // check_results(&rows, &drawn_numbers);
+    gen_permutations(&rows);
 
     Ok(())
+}
+
+fn gen_permutations(rows: &[i32]){
+    let filter_group_size = 1;
+    let keep_track = &rows;
+    let owned = keep_track.to_vec();
+
+    // println!("{:?}", b);
+    
+    // let test: HashSet<&[i32]> = HashSet::from(keep_track);
+    // let test: Vec<HashSet<_>> = iproduct!(keep_track,keep_track,keep_track,keep_track,keep_track).unique().collect();
+    // let mut myhash: HashSet<_> = HashSet::new();
+    let mut test: BTreeSet<BTreeSet<&i32>> = BTreeSet::new();
+
+    let init_permutations = iproduct!(
+        owned[0..8].iter(),
+        owned[0..8].iter(),
+        owned[0..8].iter(),
+        owned[0..8].iter(),
+        owned[0..8].iter()
+    )
+        .for_each(|(a,b,c,d,e)| { 
+            let mut tmp: BTreeSet<&i32> = BTreeSet::new();
+            tmp.insert(a);
+            tmp.insert(b);
+            tmp.insert(c);
+            tmp.insert(d);
+            tmp.insert(e);
+            test.insert(tmp);
+        });
+
+    test = test.into_iter().filter(|el| el.len() == 5).collect();
+    println!("{:?}",test.len());
+    // let init_permutations = iproduct!(
+    //     owned[0..10].iter(),
+    //     owned[0..10].iter()
+    // )
+    //     .for_each(|(a,b)| { 
+    //         let mut tmp: HashSet<_> = HashSet::new();
+    //         tmp.insert(a);
+    //         tmp.insert(b);
+    //         test.push(tmp);
+    //     });
+
 }
 
 fn check_results(rows: &Vec<i32>, drawn_numbers: &Vec<i32>) {
@@ -29,16 +77,14 @@ fn check_results(rows: &Vec<i32>, drawn_numbers: &Vec<i32>) {
 
     while high_bound < 100 {
         for index in 0..99 {
-            let bingo_card = get_bingo_card(rows, index);
+            let bingo_card: HashSet<&i32> = HashSet::from_iter(get_bingo_card(rows, index));
+            // let n_drawn: HashSet<&i32> = HashSet::from_iter(drawn_numbers.index(0..high_bound));
+            // .into();
 
-            let bingo = drawn_numbers.index(0..high_bound)
-                .iter()
-                .all(|number|
-                    bingo_card.contains(&number)
-                );
+            let is_bingo = true;// n_drawn.is_subset(&bingo_card);
 
-            if bingo == true {
-                println!("{}", index);
+            if is_bingo == true {
+                println!("bingo_card: index = {}", index);
                 break
             }
         }
