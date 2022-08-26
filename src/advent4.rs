@@ -20,79 +20,101 @@ pub fn advent4() -> io::Result<()>{
         .flatten()
         .collect::<Vec<i32>>();
 
-    // check_results(&rows, &drawn_numbers);
-    // get_bingo_card(&rows, 48);
-    // get_row(&rows, 1);
-    let pm6 = gen_permutations(&rows, 6);
-    for item in &pm6 {
-        for item2 in &pm6  {
-            if item == item2 {
-                println!("{:?} => {:?}", item, item2);
-            }
-        }
-    }
-    // println!("{:?}", pm6);
-    // println!("len: {:?}", pm6.len());
-    // let a : Vec<_> = vec![1,2,3,4,5];
-    // let b : Vec<_> = vec![2,1,3,4,5];
-    // println!("{}", a == b);
-//    let pm7: Vec<Vec<_>> = pm6
-//        .into_iter()
-//        .filter(|el| el.)
-//
-//    println!("{:?}", pm7);
-//    println!("len: {:?}", pm7.len());
+    check_results(&rows, &drawn_numbers);
 
     Ok(())
 }
 
 fn check_results(rows: &Vec<i32>, drawn_numbers: &Vec<i32>) {
     'outer: for choose_n in 5..drawn_numbers.len() {
+        println!("choosing n: {}", choose_n);
+
         let permutations = gen_permutations(&drawn_numbers, choose_n);
 
         for card in 0..99 {
-            let bingo_card: HashSet<&i32> = get_bingo_card(&rows, card).into_iter().collect();
-            // let is_bingo_index = permutations.iter().rposition(|el| el.is_subset(&bingo_card));
+            println!("card: {}", card);
 
-            // match is_bingo_index {
-                // Some(row_index) => { 
-                    // let choosen_5 = permutations.iter().nth(row_index).unwrap();
-                    // check_cols(rows, choosen_5);
-                    // check_rows(&bingo_card, choosen_5)
-                    // check if cols match returning an option with the row number, same for col
-                // }
-                // None => { continue; }
-            // }
+            let bingo_card: HashSet<&i32> = get_bingo_card(&rows, card)
+                .into_iter()
+                .collect();
+
+            let drawn_set_index = permutations
+                .iter()
+                .rposition(|el| {
+                    el.is_subset(&bingo_card)
+                });
+
+            match drawn_set_index {
+                Some(drawn_set_index) => { 
+                    let drawn_set = permutations[drawn_set_index].clone();
+                    let bingo_card = get_bingo_card(&rows, card);
+                    let found = check_card(bingo_card, drawn_set);
+                    if found { break 'outer };
+                    // matched on bingo card, now check the bingo card rows and columns
+                }
+                None => { continue; }
+            }
         }
     }
 }
 
-fn check_cols(rows: &Vec<i32>, choosen_5: &HashSet<&i32>) {
-    let i: usize = 1;
-    let card = get_bingo_card(&rows, i);
+fn check_card(card: Vec<&i32>, choosen_5: HashSet<&i32>) -> bool {
+    let found: BTreeSet<&i32> = choosen_5.into_iter().collect();
+    let mut z = false;
+
+    for index in 0..5 {
+        let col: BTreeSet<&i32> = get_col(&card, index)
+            .into_iter()
+            .collect();
+
+        let row: BTreeSet<&i32> = get_row(&card, index)
+            .into_iter()
+            .collect();
+
+        let col_intersection = col.is_superset(&found);
+        let row_intersection = col.is_superset(&found);
+
+        if col_intersection {
+            println!("found: col {}, card {:?}", index, card);
+            z = true;
+            return z
+        }
+
+        if row_intersection {
+            println!("found: row {}, card {:?}", index, card);
+            z = true;
+            return z
+        }
+    }
+
+    z
 }
 
-fn get_col(arr: Vec<&i32>, index: usize) {
-    let reindex = index % 5;
-    let low = reindex + ((index / 5) * 25);
-    let mut high = low + 25;
+fn get_col<'a>(arr: &'a Vec<&i32>, index: usize) -> Vec<&'a i32> {
+    let mut iter = arr.into_iter();
 
-    if high >= 2500 { 
-        high = 2500
-    };
+    for _ in 0..index {
+        iter.next();
+    }
 
+    let tmp = iter
+        .step_by(5)
+        .map(|&el| el)
+        .collect();
+
+    tmp
 }
 
-fn get_row(arr: &Vec<i32>, index: usize) -> Vec<&i32> {
+fn get_row<'a>(arr: &'a Vec<&i32>, index: usize) -> Vec<&'a i32> {
     let low = index * 5;
     let high = low + 5;
 
 
-    let tmp = arr.index(low..high)
-        .iter()
-        .collect();
+    let tmp = arr
+        .index(low..high)
+        .to_vec();
 
-    println!("get_row -> {} -> {:?}", index, tmp);
+    // println!("get_row -> {} -> {:?}", index, tmp);
     return tmp;
 }
 
@@ -140,8 +162,7 @@ fn get_bingo_card(arr: &Vec<i32>, index: usize) -> Vec<&i32> {
     return tmp;
 }
 
-
-fn gen_permutations(arr: &[i32], choose_n: usize) -> Vec<Vec<&i32>> {
+fn gen_permutations(arr: &[i32], choose_n: usize) -> Vec<HashSet<&i32>> {
     let keep_track = &arr;
 
     let mut permutation_tree: Vec<Vec<&i32>> = Vec::new();
@@ -154,7 +175,7 @@ fn gen_permutations(arr: &[i32], choose_n: usize) -> Vec<Vec<&i32>> {
         keep_track[0..choose_n].iter()
     )
         .for_each(|(a,b,c,d,e)| { 
-            let mut tmp: HashSet<&i32> = HashSet::new();
+            let mut tmp: BTreeSet<&i32> = BTreeSet::new();
             tmp.insert(a);
             tmp.insert(b);
             tmp.insert(c);
@@ -163,12 +184,12 @@ fn gen_permutations(arr: &[i32], choose_n: usize) -> Vec<Vec<&i32>> {
             permutation_tree.push(tmp.into_iter().collect::<Vec<&i32>>());
         });
 
-    let tmp = permutation_tree.into_iter().collect::<HashSet<_>>();
+    let tmp = permutation_tree.into_iter().collect::<BTreeSet<_>>();
 
-    permutation_tree = tmp
+    tmp
         .into_iter()
+        .map(|el| HashSet::from_iter(el))
         .filter(|el| el.len() == 5)
-        .collect();
-    permutation_tree
+        .collect::<Vec<HashSet<&i32>>>()
 }
 
