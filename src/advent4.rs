@@ -1,6 +1,6 @@
 use std::{fs::read_to_string, io, ops::Index, collections::{HashSet, BTreeSet}, iter::Inspect};
 
-use itertools::{Itertools, iproduct};
+use itertools::Itertools;
 
 pub fn advent4() -> io::Result<()>{
     let file = read_to_string("inputs/advent4.txt")?;
@@ -20,74 +20,86 @@ pub fn advent4() -> io::Result<()>{
         .flatten()
         .collect::<Vec<i32>>();
 
-    check_results(&rows, &drawn_numbers);
+    let cards = init_cards(&rows);
+    let mut index = 5;
+
+    'outer: loop {
+        if index > 99 { break; }
+        let drawn_slice: BTreeSet<&i32> = drawn_numbers[0..index].into_iter().collect();
+
+        for (inner_index, card) in cards.iter().enumerate() {
+            let tmp_card: BTreeSet<&i32> = card
+                .clone()
+                .into_iter()
+                .collect();                        
+
+            let check: Vec<&i32> = drawn_slice
+                .intersection(&tmp_card)
+                .cloned()
+                .collect::<Vec<&i32>>();
+
+            if check.len() >= 5 {
+                /* println!("intersection: {:?}", check); */
+                /* println!("more than 5 matches: {:?}", card); */
+                let cols = check_cols(card, &check);
+                let rows = check_rows(card, &check);
+
+                if cols.len() > 0 || rows.len() > 0 {
+                    println!("card: {:?},\ncard_index: {},\nmatch: {:?},\nslice_outer_index: {},\nrows: {:?},\ncols: {:?}", card, inner_index, check, index, rows, cols);
+                    ppcard(card);
+                    card_coefficient(
+                        card,
+                        &drawn_numbers[index..].iter().collect_vec(),
+                        &drawn_numbers[index-1]
+                    );
+                    break 'outer;
+                }
+
+            } else {
+                continue;
+            }
+        }
+        index += 1;
+    }
 
     Ok(())
 }
 
-fn check_results(rows: &Vec<i32>, drawn_numbers: &Vec<i32>) {
-    'outer: for choose_n in 5..drawn_numbers.len() {
-        println!("choosing n: {}", choose_n);
-
-        let permutations = gen_permutations(&drawn_numbers, choose_n);
-
-        for card in 0..99 {
-            println!("card: {}", card);
-
-            let bingo_card: HashSet<&i32> = get_bingo_card(&rows, card)
-                .into_iter()
-                .collect();
-
-            let drawn_set_index = permutations
-                .iter()
-                .rposition(|el| {
-                    el.is_subset(&bingo_card)
-                });
-
-            match drawn_set_index {
-                Some(drawn_set_index) => { 
-                    let drawn_set = permutations[drawn_set_index].clone();
-                    let bingo_card = get_bingo_card(&rows, card);
-                    let found = check_card(bingo_card, drawn_set);
-                    if found { break 'outer };
-                    // matched on bingo card, now check the bingo card rows and columns
-                }
-                None => { continue; }
-            }
-        }
-    }
+fn ppcard(card: &Vec<&i32>) {
+   for i in 0..5 {
+       println!("{:?}", get_row(card, i));
+   } 
 }
 
-fn check_card(card: Vec<&i32>, choosen_5: HashSet<&i32>) -> bool {
-    let found: BTreeSet<&i32> = choosen_5.into_iter().collect();
-    let mut z = false;
+fn check_cols<'a>(card: &'a Vec<&i32>, intersection: &'a Vec<&i32>) -> Vec<&'a i32> {
+    let mut found = Vec::new();
 
-    for index in 0..5 {
-        let col: BTreeSet<&i32> = get_col(&card, index)
-            .into_iter()
-            .collect();
+    for col in 0..5  {
+        let tmp_col: BTreeSet<_> = get_col(card, col).into_iter().collect();
+        let tmp_inter: BTreeSet<_> = intersection.clone().into_iter().collect();
 
-        let row: BTreeSet<&i32> = get_row(&card, index)
-            .into_iter()
-            .collect();
-
-        let col_intersection = col.is_superset(&found);
-        let row_intersection = col.is_superset(&found);
-
-        if col_intersection {
-            println!("found: col {}, card {:?}", index, card);
-            z = true;
-            return z
-        }
-
-        if row_intersection {
-            println!("found: row {}, card {:?}", index, card);
-            z = true;
-            return z
-        }
+        /* println!("intersection: {:?} -> col: {:?}", tmp_inter, tmp_col); */
+        if tmp_inter.is_superset(&tmp_col) {
+            found = tmp_col.into_iter().collect();
+            break;
+        } 
     }
+    found
+}
 
-    z
+fn check_rows<'a>(card: &'a Vec<&i32>, intersection: &'a Vec<&i32>) -> Vec<&'a i32> {
+    let mut found = Vec::new();
+
+    for row in 0..5  {
+        let tmp_row: BTreeSet<_> = get_row(card, row).into_iter().collect();
+        let tmp_inter: BTreeSet<_> = intersection.clone().into_iter().collect();
+
+        if tmp_inter.is_superset(&tmp_row) {
+            found = tmp_row.into_iter().collect();
+            break;
+        } 
+    }
+    found
 }
 
 fn get_col<'a>(arr: &'a Vec<&i32>, index: usize) -> Vec<&'a i32> {
@@ -118,32 +130,31 @@ fn get_row<'a>(arr: &'a Vec<&i32>, index: usize) -> Vec<&'a i32> {
     return tmp;
 }
 
-fn check_rows(bingo_card: &HashSet<&i32>, choosen_5: &HashSet<&i32>) {
-    for i in 0..5 {
-        // get_row(bingo_card, i)
-    }
-}
-
-                    // println!("bingo_card_index: {:?}, bingo_row: {:?}, last_number_index: {}", card, bingo_index, choose_n);
-                    // card_coefficient(
-                        // &bingo_card,
-                        // permutations.iter().nth(bingo_index).unwrap(),
-                        // drawn_numbers.iter().nth(choose_n).unwrap() 
-                    // );
-                    // break 'outer;
-fn card_coefficient(card: &HashSet<&i32>, bingo_5: &HashSet<&i32>, last_number: &i32) {
+fn card_coefficient(card: &Vec<&i32>, slice_complement: &Vec<&i32>, last_number: &i32) {
     println!("card: {:?}", card);
-    println!("bingo_row: {:?}", bingo_5);
+    println!("bingo_row: {:?}", slice_complement);
     println!("last_number: {:?}", last_number);
 
-    let unmarked_numbers: _ = card
-        .difference(bingo_5)
+    let card: BTreeSet<&i32> = card.clone().into_iter().collect();
+    let slice_complement: BTreeSet<&i32> = slice_complement.clone().into_iter().collect();
+
+    let intersection: Vec<_> = card
+        .difference(&slice_complement)
+        .cloned()
+        .collect();
+
+    println!("complement: {:?}", intersection);
+    println!("complement len: {:?}", intersection.len());
+
+    let sum_of_unmarked = intersection
         .into_iter()
-        .map(|&&el| el)
+        .map(|&el| el)
         .reduce(|acc, el| acc + el)
         .unwrap();
 
-    let card_coefficient = unmarked_numbers * last_number;
+
+    println!("sum of unmarked: {}", sum_of_unmarked);
+    let card_coefficient = sum_of_unmarked * last_number;
     println!("card_coefficient: {}", card_coefficient);
 }
 
@@ -162,34 +173,12 @@ fn get_bingo_card(arr: &Vec<i32>, index: usize) -> Vec<&i32> {
     return tmp;
 }
 
-fn gen_permutations(arr: &[i32], choose_n: usize) -> Vec<HashSet<&i32>> {
-    let keep_track = &arr;
+fn init_cards(rows: &Vec<i32>) -> Vec<Vec<&i32>> {
+    let mut cards: Vec<Vec<&i32>> = vec![];
 
-    let mut permutation_tree: Vec<Vec<&i32>> = Vec::new();
+    for index in 0..99 {
+        cards.push(get_bingo_card(&rows, index).into_iter().collect::<Vec<&i32>>());
+    }
 
-    let init_permutations = iproduct!(
-        keep_track[0..choose_n].iter(),
-        keep_track[0..choose_n].iter(),
-        keep_track[0..choose_n].iter(),
-        keep_track[0..choose_n].iter(),
-        keep_track[0..choose_n].iter()
-    )
-        .for_each(|(a,b,c,d,e)| { 
-            let mut tmp: BTreeSet<&i32> = BTreeSet::new();
-            tmp.insert(a);
-            tmp.insert(b);
-            tmp.insert(c);
-            tmp.insert(d);
-            tmp.insert(e);
-            permutation_tree.push(tmp.into_iter().collect::<Vec<&i32>>());
-        });
-
-    let tmp = permutation_tree.into_iter().collect::<BTreeSet<_>>();
-
-    tmp
-        .into_iter()
-        .map(|el| HashSet::from_iter(el))
-        .filter(|el| el.len() == 5)
-        .collect::<Vec<HashSet<&i32>>>()
+    cards
 }
-
