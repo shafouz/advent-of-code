@@ -21,43 +21,58 @@ pub fn advent4() -> io::Result<()>{
         .collect::<Vec<i32>>();
 
     let cards = init_cards(&rows);
-    let mut index = 5;
+    let mut index = 1;
 
     'outer: loop {
         if index > 99 { break; }
-        let drawn_slice: BTreeSet<&i32> = drawn_numbers[0..index].into_iter().collect();
+        // drawn_slice is sorted so the order is fucked
+        // need to change to vec
+        let drawn_slice: Vec<&i32> = drawn_numbers[0..index].into_iter().collect();
 
         for (inner_index, card) in cards.iter().enumerate() {
-            let tmp_card: BTreeSet<&i32> = card
-                .clone()
+            let slice_intersection_card: Vec<&i32> = card
                 .into_iter()
-                .collect();                        
-
-            let check: Vec<&i32> = drawn_slice
-                .intersection(&tmp_card)
+                .filter(|el| drawn_slice.contains(el))
                 .cloned()
                 .collect::<Vec<&i32>>();
 
-            if check.len() >= 5 {
-                /* println!("intersection: {:?}", check); */
-                /* println!("more than 5 matches: {:?}", card); */
-                let cols = check_cols(card, &check);
-                let rows = check_rows(card, &check);
+            /* if slice_intersection_card.len() >= 5 { */
+            /* println!("intersection: {:?}", check); */
+            /* println!("more than 5 matches: {:?}", card); */
+            let cols = check_cols(card, &slice_intersection_card);
+            let rows = check_rows(card, &slice_intersection_card);
 
-                if cols.len() > 0 || rows.len() > 0 {
-                    println!("card: {:?},\ncard_index: {},\nmatch: {:?},\nslice_outer_index: {},\nrows: {:?},\ncols: {:?}", card, inner_index, check, index, rows, cols);
-                    ppcard(card);
-                    card_coefficient(
-                        card,
-                        &drawn_numbers[index..].iter().collect_vec(),
-                        &drawn_numbers[index-1]
-                    );
-                    break 'outer;
-                }
+            if cols.len() != rows.len() {
+                println!("card: {:?},\ncard_index: {},\nmatch: {:?},\nslice_outer_index: {},\nrows: {:?},\ncols: {:?},\nare_the_slices_eq: {},\ndrawn_numbers: {:?},\nslice: {:?}",
+                    card,
+                    inner_index,
+                    slice_intersection_card,
+                    index,
+                    rows,
+                    cols,
+                    drawn_slice.len() == drawn_numbers[0..index].into_iter().collect::<Vec<_>>().len(),
+                    drawn_numbers[0..index].into_iter().collect::<Vec<_>>(),
+                    drawn_slice
+                );
+                ppcard(card);
+                let elements_to_exclude = if cols.len() > 0 {
+                    cols
+                } else {
+                    rows
+                };
 
-            } else {
-                continue;
+                card_coefficient(
+                    card,
+                    &drawn_numbers[0..index].iter().collect_vec(),
+                    &drawn_numbers[index-1],
+                    &elements_to_exclude
+                );
+                break 'outer;
             }
+
+            // } else {
+            //     continue;
+            // }
         }
         index += 1;
     }
@@ -66,9 +81,11 @@ pub fn advent4() -> io::Result<()>{
 }
 
 fn ppcard(card: &Vec<&i32>) {
-   for i in 0..5 {
-       println!("{:?}", get_row(card, i));
-   } 
+        println!("====================");
+    for i in 0..5 {
+        println!("{:?}", get_row(card, i));
+    } 
+        println!("====================");
 }
 
 fn check_cols<'a>(card: &'a Vec<&i32>, intersection: &'a Vec<&i32>) -> Vec<&'a i32> {
@@ -78,8 +95,8 @@ fn check_cols<'a>(card: &'a Vec<&i32>, intersection: &'a Vec<&i32>) -> Vec<&'a i
         let tmp_col: BTreeSet<_> = get_col(card, col).into_iter().collect();
         let tmp_inter: BTreeSet<_> = intersection.clone().into_iter().collect();
 
-        /* println!("intersection: {:?} -> col: {:?}", tmp_inter, tmp_col); */
         if tmp_inter.is_superset(&tmp_col) {
+            println!("intersection: {:?} -> col: {:?}", tmp_inter, tmp_col);
             found = tmp_col.into_iter().collect();
             break;
         } 
@@ -130,7 +147,7 @@ fn get_row<'a>(arr: &'a Vec<&i32>, index: usize) -> Vec<&'a i32> {
     return tmp;
 }
 
-fn card_coefficient(card: &Vec<&i32>, slice_complement: &Vec<&i32>, last_number: &i32) {
+fn card_coefficient(card: &Vec<&i32>, slice_complement: &Vec<&i32>, last_number: &i32, elements_to_exclude: &Vec<&i32>) {
     println!("card: {:?}", card);
     println!("bingo_row: {:?}", slice_complement);
     println!("last_number: {:?}", last_number);
@@ -141,6 +158,8 @@ fn card_coefficient(card: &Vec<&i32>, slice_complement: &Vec<&i32>, last_number:
     let intersection: Vec<_> = card
         .difference(&slice_complement)
         .cloned()
+        .into_iter()
+        .filter(|el| !elements_to_exclude.contains(el))
         .collect();
 
     println!("complement: {:?}", intersection);
