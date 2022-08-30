@@ -20,8 +20,12 @@ pub fn advent4() -> io::Result<()>{
         .flatten()
         .collect::<Vec<i32>>();
 
+
     let cards = init_cards(&rows);
+    let mut already_won_bingo_cards: Vec<usize> = vec![];
     let mut index = 1;
+
+    ppcard(&get_bingo_card(&rows, 28));
 
     'outer: loop {
         if index > 99 { break; }
@@ -30,6 +34,8 @@ pub fn advent4() -> io::Result<()>{
         let drawn_slice: Vec<&i32> = drawn_numbers[0..index].into_iter().collect();
 
         for (inner_index, card) in cards.iter().enumerate() {
+            if already_won_bingo_cards.contains(&inner_index) { continue; }
+
             let slice_intersection_card: Vec<&i32> = card
                 .into_iter()
                 .filter(|el| drawn_slice.contains(el))
@@ -42,32 +48,37 @@ pub fn advent4() -> io::Result<()>{
             let cols = check_cols(card, &slice_intersection_card);
             let rows = check_rows(card, &slice_intersection_card);
 
-            if cols.len() != rows.len() {
-                println!("card: {:?},\ncard_index: {},\nmatch: {:?},\nslice_outer_index: {},\nrows: {:?},\ncols: {:?},\nare_the_slices_eq: {},\ndrawn_numbers: {:?},\nslice: {:?}",
-                    card,
-                    inner_index,
-                    slice_intersection_card,
-                    index,
-                    rows,
-                    cols,
-                    drawn_slice.len() == drawn_numbers[0..index].into_iter().collect::<Vec<_>>().len(),
-                    drawn_numbers[0..index].into_iter().collect::<Vec<_>>(),
-                    drawn_slice
-                );
-                ppcard(card);
-                let elements_to_exclude = if cols.len() > 0 {
-                    cols
-                } else {
-                    rows
-                };
 
-                card_coefficient(
-                    card,
-                    &drawn_numbers[0..index].iter().collect_vec(),
-                    &drawn_numbers[index-1],
-                    &elements_to_exclude
-                );
-                break 'outer;
+            if cols.len() != rows.len() {
+                already_won_bingo_cards.push(inner_index);
+
+                if already_won_bingo_cards.len() == 92 {
+                    println!("card: {:?},\ncard_index: {},\nmatch: {:?},\nslice_outer_index: {},\nrows: {:?},\ncols: {:?},\nare_the_slices_eq: {},\ndrawn_numbers: {:?},\nslice: {:?}",
+                        card,
+                        inner_index,
+                        slice_intersection_card,
+                        index,
+                        rows,
+                        cols,
+                        drawn_slice.len() == drawn_numbers[0..index].into_iter().collect::<Vec<_>>().len(),
+                        drawn_numbers[0..index].into_iter().collect::<Vec<_>>(),
+                        drawn_slice
+                    );
+
+                    ppcard(card);
+                    let elements_to_exclude = if cols.len() > 0 {
+                        cols
+                    } else {
+                        rows
+                    };
+
+                    card_coefficient(
+                        card,
+                        &drawn_numbers[0..index].iter().collect_vec(),
+                        &drawn_numbers[index-1],
+                        &elements_to_exclude
+                    );
+                }
             }
 
             // } else {
@@ -81,11 +92,11 @@ pub fn advent4() -> io::Result<()>{
 }
 
 fn ppcard(card: &Vec<&i32>) {
-        println!("====================");
+    println!("====================");
     for i in 0..5 {
         println!("{:?}", get_row(card, i));
     } 
-        println!("====================");
+    println!("====================");
 }
 
 fn check_cols<'a>(card: &'a Vec<&i32>, intersection: &'a Vec<&i32>) -> Vec<&'a i32> {
@@ -96,7 +107,7 @@ fn check_cols<'a>(card: &'a Vec<&i32>, intersection: &'a Vec<&i32>) -> Vec<&'a i
         let tmp_inter: BTreeSet<_> = intersection.clone().into_iter().collect();
 
         if tmp_inter.is_superset(&tmp_col) {
-            println!("intersection: {:?} -> col: {:?}", tmp_inter, tmp_col);
+            // println!("intersection: {:?} -> col: {:?}", tmp_inter, tmp_col);
             found = tmp_col.into_iter().collect();
             break;
         } 
